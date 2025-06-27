@@ -132,6 +132,18 @@ $$
 LANGUAGE PLPGSQL;
 
 
+-- Normaliza o campo COR de uma tabela fazendo com que todas as letras sejam maiúsculas
+CREATE OR REPLACE FUNCTION NORMALIZAR_COR()
+RETURNS TRIGGER AS
+$$
+BEGIN
+    NEW.COR = INITCAP(NEW.COR);
+    RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
 -- Trigger que executa a função NORMALIZAR_EMAIL() na tabela CLIENTE
 CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_EMAIL_CLIENTE
 BEFORE INSERT OR UPDATE ON CLIENTE
@@ -147,42 +159,42 @@ EXECUTE FUNCTION NORMALIZAR_EMAIL();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela CLIENTE
-CREATE TRIGGER TRG_NORMALIZAR_NOME_CLIENTE
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_CLIENTE
 BEFORE INSERT OR UPDATE ON CLIENTE
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela FUNCIONARIO
-CREATE TRIGGER TRG_NORMALIZAR_NOME_FUNCIONARIO
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_FUNCIONARIO
 BEFORE INSERT OR UPDATE ON FUNCIONARIO
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela NOME_ITEM
-CREATE TRIGGER TRG_NORMALIZAR_NOME_ITEM
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_ITEM
 BEFORE INSERT OR UPDATE ON ITEM
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela NOME_MODELO
-CREATE TRIGGER TRG_NORMALIZAR_NOME_MODELO
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_MODELO
 BEFORE INSERT OR UPDATE ON MODELO
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela NOME_MONTADORA
-CREATE TRIGGER TRG_NORMALIZAR_NOME_MONTADORA
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_MONTADORA
 BEFORE INSERT OR UPDATE ON MONTADORA
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
 
 
 -- Trigger que executa a função NORMALIZAR_NOME() na tabela TIPO_ITEM
-CREATE TRIGGER TRG_NORMALIZAR_NOME_TIPO_ITEM
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_NOME_TIPO_ITEM
 BEFORE INSERT OR UPDATE ON TIPO_ITEM
 FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_NOME();
@@ -222,6 +234,73 @@ FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_PLACA();
 
 
+-- Trigger que executa a função NORMALIZAR_COR() na tabela veículo
+CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_COR
+BEFORE INSERT OR UPDATE ON VEICULO
+FOR EACH ROW
+EXECUTE FUNCTION NORMALIZAR_COR();
+
+
+-- Faz o controle de estoque entre ITEM E ITEM_ORDEM
+CREATE OR REPLACE FUNCTION controlar_estoque()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    estoque_atual INTEGER;
+    diferenca INTEGER;
+BEGIN
+    -- INSERÇÃO: tirar do estoque
+    IF TG_OP = 'INSERT' THEN
+        SELECT quantidade INTO estoque_atual FROM item WHERE cod_item = NEW.cod_item;
+
+        IF estoque_atual < NEW.quantidade THEN
+            RAISE EXCEPTION 'Estoque insuficiente para o item %, disponível: %, solicitado: %',
+                NEW.cod_item, estoque_atual, NEW.quantidade;
+        END IF;
+
+        UPDATE item
+        SET quantidade = quantidade - NEW.quantidade
+        WHERE cod_item = NEW.cod_item;
+
+    -- ATUALIZAÇÃO: ajustar a diferença
+    ELSIF TG_OP = 'UPDATE' THEN
+        diferenca = NEW.quantidade - OLD.quantidade;
+
+        IF diferenca <> 0 THEN
+            SELECT quantidade INTO estoque_atual FROM item WHERE cod_item = NEW.cod_item;
+
+            -- Se estiver aumentando a quantidade usada, verificar se há estoque suficiente
+            IF diferenca > 0 AND estoque_atual < diferenca THEN
+                RAISE EXCEPTION 'Estoque insuficiente para atualizar o item %, disponível: %, necessário: %',
+                    NEW.cod_item, estoque_atual, diferenca;
+            END IF;
+
+            UPDATE item
+            SET quantidade = quantidade - diferenca
+            WHERE cod_item = NEW.cod_item;
+        END IF;
+
+    -- EXCLUSÃO: devolver ao estoque
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE item
+        SET quantidade = quantidade + OLD.quantidade
+        WHERE cod_item = OLD.cod_item;
+    END IF;
+
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE TRIGGER trg_estoque_insert_update_delete
+AFTER INSERT OR UPDATE OR DELETE ON item_ordem
+FOR EACH ROW
+EXECUTE FUNCTION controlar_estoque();
+
+
+
+
 INSERT INTO cliente VALUES
 (
 	1,
@@ -258,6 +337,11 @@ INSERT INTO tipo_item (cod_tipo_item, nome)
 VALUES (1, 'pEÇa');
 
 
+INSERT INTO tipo_item (cod_tipo_item, nome)
+VALUES (2, 'servIÇo');
+
+
+
 INSERT INTO item (cod_item, cod_tipo_item, nome, preco, descricao, quantidade)
 VALUES (
     1,
@@ -278,6 +362,51 @@ VALUES (
 );
 
 
+INSERT INTO ORDEM_SERVICO (COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO, VALOR, DESCONTO)
+VALUES (
+	1,
+	1,
+	1,
+	1,
+	NOW(),
+	0,
+	0
+);
+
+
+INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
+VALUES
+(
+	1,
+	1,
+	1,
+	5
+);
+
+
+INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
+VALUES
+(
+	2,
+	1,
+	1,
+	16
+);
+
+
+UPDATE ITEM_ORDEM
+SET QUANTIDADE = 3
+WHERE COD_ITEM_ORDEM = 1;
+
+
+UPDATE ITEM_ORDEM
+SET QUANTIDADE = 21
+WHERE COD_ITEM_ORDEM = 1;
+
+
+DELETE FROM ITEM_ORDEM; 
+
+
 SELECT * FROM CLIENTE
 SELECT * FROM FUNCIONARIO
 SELECT * FROM MODELO
@@ -285,8 +414,5 @@ SELECT * FROM MONTADORA
 SELECT * FROM ITEM
 SELECT * FROM TIPO_ITEM
 SELECT * FROM VEICULO
-
-
-
-
-
+SELECT * FROM ORDEM_SERVICO
+SELECT * FROM ITEM_ORDEM
