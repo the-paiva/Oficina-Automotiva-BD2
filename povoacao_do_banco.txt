@@ -1,0 +1,118 @@
+Arquivo txt que contém uma série de comandos com finalidade de povoar a tabela e facilitar testes
+
+
+INSERT INTO cliente VALUES
+(
+	1,
+	'080.083.623-59',
+	'henrIQUe paIvA',
+	'09-12-2004',
+	'86995631565',
+	'hrPAIva3@gaYmail.com'
+);
+
+
+INSERT INTO FUNCIONARIO VALUES 
+(
+    1,
+    '321.654.987-00',
+    'ana cArOLina DOs sANtos',
+    '1995-08-12',
+    '99988-7766',
+    'ANA.CAROLINA@EMAIL.COM'
+);
+
+DELETE FROM FUNCIONARIO;
+
+
+INSERT INTO montadora (cod_montadora, nome)
+VALUES (1, 'chEVRolEt');
+
+
+INSERT INTO modelo (cod_modelo, cod_montadora, nome, ano)
+VALUES (1, 1, 'onIx', 2022);
+
+
+INSERT INTO tipo_item (cod_tipo_item, nome)
+VALUES (1, 'pEÇa');
+
+
+INSERT INTO tipo_item (cod_tipo_item, nome)
+VALUES (2, 'servIÇo');
+
+
+
+INSERT INTO item (cod_item, cod_tipo_item, nome, preco, descricao, quantidade)
+VALUES (
+    1,
+    1,
+    'fiLTrO dE ólEo',
+    45.90,
+    'Filtro de óleo original para motores GM 1.0/1.4',
+    20
+);
+
+
+INSERT INTO veiculo (cod_veiculo, cod_modelo, placa, cor)
+VALUES (
+	1,
+	1,
+	'ael1234',
+	'vErmelho'
+);
+
+
+INSERT INTO ORDEM_SERVICO (COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO, VALOR, DESCONTO)
+VALUES (
+	1,
+	1,
+	1,
+	1,
+	NOW(),
+	0,
+	0
+);
+
+
+INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
+VALUES
+(
+	1,
+	1,
+	1,
+	5
+);
+
+
+INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
+VALUES
+(
+	2,
+	1,
+	1,
+	16
+);
+
+
+UPDATE ITEM_ORDEM
+SET QUANTIDADE = 3
+WHERE COD_ITEM_ORDEM = 1;
+
+
+UPDATE ITEM_ORDEM
+SET QUANTIDADE = 21
+WHERE COD_ITEM_ORDEM = 1;
+
+
+DELETE FROM ITEM_ORDEM; 
+
+
+SELECT * FROM CLIENTE
+SELECT * FROM FUNCIONARIO
+SELECT * FROM MODELO
+SELECT * FROM MONTADORA
+SELECT * FROM ITEM
+SELECT * FROM TIPO_ITEM
+SELECT * FROM VEICULO
+SELECT * FROM ORDEM_SERVICO
+SELECT * FROM ITEM_ORDEM
