@@ -372,3 +372,37 @@ BEFORE DELETE ON CLIENTE
 FOR EACH ROW
 EXECUTE FUNCTION IMPEDIR_DELETE_DE_CLIENTE_COM_OS();
 
+
+-- Impede que um item que já foi usado em alguma ordem de serviço seja deletado
+CREATE OR REPLACE FUNCTION IMPEDIR_DELETE_DE_ITEM_UTILIZADO()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    ITEM_UTILIZADO BOOLEAN;
+BEGIN
+    -- Verifica se o item foi usado em alguma ordem de serviço
+    SELECT EXISTS
+	(
+        SELECT 1
+        FROM ITEM_ORDEM
+        WHERE COD_ITEM = OLD.COD_ITEM
+    )
+	INTO ITEM_UTILIZADO;
+
+    -- Se foi usado, impede a exclusão
+    IF ITEM_UTILIZADO THEN
+        RAISE EXCEPTION 'Não é possível excluir o item %, pois ele está vinculado a uma ou mais ordens de serviço.', OLD.NOME;
+    END IF;
+
+    RETURN OLD;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+-- Trigger que executa a função IMPEDIR_DELETE_DE_ITEM_UTILIZADO na tabela ITEM
+CREATE OR REPLACE TRIGGER TRG_IMPEDIR_DELETE_DE_ITEM_UTILIZADO
+BEFORE DELETE ON ITEM
+FOR EACH ROW
+EXECUTE FUNCTION IMPEDIR_DELETE_DE_ITEM_UTILIZADO();
+
