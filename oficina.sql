@@ -234,7 +234,7 @@ FOR EACH ROW
 EXECUTE FUNCTION NORMALIZAR_PLACA();
 
 
--- Trigger que executa a função NORMALIZAR_COR() na tabela veículo
+-- Trigger que executa a função NORMALIZAR_COR() na tabela VEICULO
 CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_COR
 BEFORE INSERT OR UPDATE ON VEICULO
 FOR EACH ROW
@@ -242,177 +242,98 @@ EXECUTE FUNCTION NORMALIZAR_COR();
 
 
 -- Faz o controle de estoque entre ITEM E ITEM_ORDEM
-CREATE OR REPLACE FUNCTION controlar_estoque()
+CREATE OR REPLACE FUNCTION CONTROLAR_ESTOQUE()
 RETURNS TRIGGER AS
 $$
 DECLARE
-    estoque_atual INTEGER;
-    diferenca INTEGER;
+    ESTOQUE_ATUAL INTEGER;
+    DIFERENCA INTEGER;
 BEGIN
-    -- INSERÇÃO: tirar do estoque
+    -- Tira do estoque
     IF TG_OP = 'INSERT' THEN
-        SELECT quantidade INTO estoque_atual FROM item WHERE cod_item = NEW.cod_item;
+        SELECT QUANTIDADE INTO ESTOQUE_ATUAL FROM ITEM WHERE COD_ITEM = NEW.COD_ITEM;
 
-        IF estoque_atual < NEW.quantidade THEN
+        IF ESTOQUE_ATUAL < NEW.QUANTIDADE THEN
             RAISE EXCEPTION 'Estoque insuficiente para o item %, disponível: %, solicitado: %',
-                NEW.cod_item, estoque_atual, NEW.quantidade;
+                NEW.COD_ITEM, ESTOQUE_ATUAL, NEW.QUANTIDADE;
         END IF;
 
-        UPDATE item
-        SET quantidade = quantidade - NEW.quantidade
-        WHERE cod_item = NEW.cod_item;
+        UPDATE ITEM
+        SET QUANTIDADE = QUANTIDADE - NEW.QUANTIDADE
+        WHERE COD_ITEM = NEW.COD_ITEM;
 
-    -- ATUALIZAÇÃO: ajustar a diferença
+    -- Ajusta a diferença
     ELSIF TG_OP = 'UPDATE' THEN
-        diferenca = NEW.quantidade - OLD.quantidade;
+        DIFERENCA := NEW.QUANTIDADE - OLD.QUANTIDADE;
 
-        IF diferenca <> 0 THEN
-            SELECT quantidade INTO estoque_atual FROM item WHERE cod_item = NEW.cod_item;
+        IF DIFERENCA <> 0 THEN
+            SELECT QUANTIDADE INTO ESTOQUE_ATUAL FROM ITEM WHERE COD_ITEM = NEW.COD_ITEM;
 
             -- Se estiver aumentando a quantidade usada, verificar se há estoque suficiente
-            IF diferenca > 0 AND estoque_atual < diferenca THEN
+            IF DIFERENCA > 0 AND ESTOQUE_ATUAL < DIFERENCA THEN
                 RAISE EXCEPTION 'Estoque insuficiente para atualizar o item %, disponível: %, necessário: %',
-                    NEW.cod_item, estoque_atual, diferenca;
+                    NEW.COD_ITEM, ESTOQUE_ATUAL, DIFERENCA;
             END IF;
 
-            UPDATE item
-            SET quantidade = quantidade - diferenca
-            WHERE cod_item = NEW.cod_item;
+            UPDATE ITEM
+            SET QUANTIDADE = QUANTIDADE - DIFERENCA
+            WHERE COD_ITEM = NEW.COD_ITEM;
         END IF;
 
-    -- EXCLUSÃO: devolver ao estoque
+    -- Devolve ao estoque
     ELSIF TG_OP = 'DELETE' THEN
-        UPDATE item
-        SET quantidade = quantidade + OLD.quantidade
-        WHERE cod_item = OLD.cod_item;
+        UPDATE ITEM
+        SET QUANTIDADE = QUANTIDADE + OLD.QUANTIDADE
+        WHERE COD_ITEM = OLD.COD_ITEM;
     END IF;
 
     RETURN NULL;
 END;
 $$
-LANGUAGE plpgsql;
+LANGUAGE PLPGSQL;
 
 
-CREATE OR REPLACE TRIGGER trg_estoque_insert_update_delete
-AFTER INSERT OR UPDATE OR DELETE ON item_ordem
+-- Trigger que executa a função CONTROLAR_ESTOQUE() na tabela ITEM_ORDEM
+CREATE OR REPLACE TRIGGER TRG_ESTOQUE_INSERT_UPDATE_DELETE
+AFTER INSERT OR UPDATE OR DELETE ON ITEM_ORDEM
 FOR EACH ROW
-EXECUTE FUNCTION controlar_estoque();
+EXECUTE FUNCTION CONTROLAR_ESTOQUE();
 
 
+CREATE OR REPLACE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    TOTAL NUMERIC := 0;
+    ORDEM_ID INTEGER;
+BEGIN
+    -- Identifica a ordem de serviço a ser atualizada
+    IF TG_OP = 'DELETE' THEN
+        ORDEM_ID := OLD.COD_ORDEM_SERVICO;
+    ELSE
+        ORDEM_ID := NEW.COD_ORDEM_SERVICO;
+    END IF;
+
+    -- Recalcula o valor total somando: QUANTIDADE * PRECO
+    SELECT SUM(ITEM_ORDEM.QUANTIDADE * ITEM.PRECO)
+    INTO TOTAL
+    FROM ITEM_ORDEM
+    JOIN ITEM ON ITEM.COD_ITEM = ITEM_ORDEM.COD_ITEM
+    WHERE ITEM_ORDEM.COD_ORDEM_SERVICO = ORDEM_ID;
+
+    -- Atualiza o valor na tabela ORDEM_SERVICO
+    UPDATE ORDEM_SERVICO
+    SET VALOR = COALESCE(TOTAL, 0)
+    WHERE COD_ORDEM_SERVICO = ORDEM_ID;
+
+    RETURN NULL;
+END;
+$$
+LANGUAGE PLPGSQL;
 
 
-INSERT INTO cliente VALUES
-(
-	1,
-	'080.083.623-59',
-	'henrIQUe paIvA',
-	'09-12-2004',
-	'86995631565',
-	'hrPAIva3@gaYmail.com'
-);
-
-
-INSERT INTO FUNCIONARIO VALUES 
-(
-    1,
-    '321.654.987-00',
-    'ana cArOLina DOs sANtos',
-    '1995-08-12',
-    '99988-7766',
-    'ANA.CAROLINA@EMAIL.COM'
-);
-
-DELETE FROM FUNCIONARIO;
-
-
-INSERT INTO montadora (cod_montadora, nome)
-VALUES (1, 'chEVRolEt');
-
-
-INSERT INTO modelo (cod_modelo, cod_montadora, nome, ano)
-VALUES (1, 1, 'onIx', 2022);
-
-
-INSERT INTO tipo_item (cod_tipo_item, nome)
-VALUES (1, 'pEÇa');
-
-
-INSERT INTO tipo_item (cod_tipo_item, nome)
-VALUES (2, 'servIÇo');
-
-
-
-INSERT INTO item (cod_item, cod_tipo_item, nome, preco, descricao, quantidade)
-VALUES (
-    1,
-    1,
-    'fiLTrO dE ólEo',
-    45.90,
-    'Filtro de óleo original para motores GM 1.0/1.4',
-    20
-);
-
-
-INSERT INTO veiculo (cod_veiculo, cod_modelo, placa, cor)
-VALUES (
-	1,
-	1,
-	'ael1234',
-	'vErmelho'
-);
-
-
-INSERT INTO ORDEM_SERVICO (COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO, VALOR, DESCONTO)
-VALUES (
-	1,
-	1,
-	1,
-	1,
-	NOW(),
-	0,
-	0
-);
-
-
-INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
-VALUES
-(
-	1,
-	1,
-	1,
-	5
-);
-
-
-INSERT INTO ITEM_ORDEM(COD_ITEM_ORDEM, COD_ORDEM_SERVICO, COD_ITEM, QUANTIDADE)
-VALUES
-(
-	2,
-	1,
-	1,
-	16
-);
-
-
-UPDATE ITEM_ORDEM
-SET QUANTIDADE = 3
-WHERE COD_ITEM_ORDEM = 1;
-
-
-UPDATE ITEM_ORDEM
-SET QUANTIDADE = 21
-WHERE COD_ITEM_ORDEM = 1;
-
-
-DELETE FROM ITEM_ORDEM; 
-
-
-SELECT * FROM CLIENTE
-SELECT * FROM FUNCIONARIO
-SELECT * FROM MODELO
-SELECT * FROM MONTADORA
-SELECT * FROM ITEM
-SELECT * FROM TIPO_ITEM
-SELECT * FROM VEICULO
-SELECT * FROM ORDEM_SERVICO
-SELECT * FROM ITEM_ORDEM
+-- Trigger que executa a função CALCULAR_VALOR_DE_ORDEM_DE_SERVICO() na tabela ITEM_ORDEM
+CREATE OR REPLACE TRIGGER TRG_CALCULAR_VALOR_DE_ORDEM_DE_SERVICO
+AFTER INSERT OR UPDATE OR DELETE ON ITEM_ORDEM
+FOR EACH ROW
+EXECUTE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO();
