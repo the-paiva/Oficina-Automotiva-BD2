@@ -337,3 +337,38 @@ CREATE OR REPLACE TRIGGER TRG_CALCULAR_VALOR_DE_ORDEM_DE_SERVICO
 AFTER INSERT OR UPDATE OR DELETE ON ITEM_ORDEM
 FOR EACH ROW
 EXECUTE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO();
+
+
+-- Impede que um cliente que tenha uma ordem de serviço registrada seja deletado
+CREATE OR REPLACE FUNCTION IMPEDIR_DELETE_DE_CLIENTE_COM_OS()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    TEM_ORDEM_DE_SERVICO BOOLEAN;
+BEGIN
+    -- Verifica se existe pelo menos uma ordem de serviço vinculada ao cliente
+    SELECT EXISTS 
+	(
+        SELECT 1
+        FROM ORDEM_SERVICO
+        WHERE COD_CLIENTE = OLD.COD_CLIENTE
+    ) 
+	INTO TEM_ORDEM_DE_SERVICO;
+
+    -- Se tiver, impede a exclusão
+    IF TEM_ORDEM_DE_SERVICO THEN
+        RAISE EXCEPTION 'Não é possível excluir o cliente %, pois ele possui ordens de serviço registradas.', OLD.NOME;
+    END IF;
+
+    RETURN OLD;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+-- Trigger que executa a função IMPEDIR_DELETE_DE_CLIENTE_OS na tabela CLIENTE
+CREATE OR REPLACE TRIGGER TRG_IMPEDIR_DELETE_DE_CLIENTE_COM_OS
+BEFORE DELETE ON CLIENTE
+FOR EACH ROW
+EXECUTE FUNCTION IMPEDIR_DELETE_DE_CLIENTE_COM_OS();
+
