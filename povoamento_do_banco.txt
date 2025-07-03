@@ -168,3 +168,61 @@ SELECT * FROM TIPO_ITEM
 SELECT * FROM VEICULO
 SELECT * FROM ORDEM_SERVICO
 SELECT * FROM ITEM_ORDEM
+
+
+SELECT INSERIR_DADOS(
+    'cliente',
+    'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+    '10, ''123.456.789-00'', ''Joana Teste'', ''2000-06-17'', ''99999-1234'', ''joana@ifpi.edu.br'''
+);
+
+
+SELECT INSERIR_DADOS(
+	'cliente',
+	'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+	'2, ''184.212.883-34'', ''Daci'', ''1963-05-21'', ''(86)99434-5432'', ''dada@gmail.com'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'funcionario',
+    'cod_funcionario, cpf, nome, dt_nasc, telefone, email',
+    '2, ''987.654.321-00'', ''Carlos Silva'', ''1985-03-22'', ''99888-7766'', ''carlos@ifpi.edu.br'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'montadora',
+    'cod_montadora, nome',
+    '2, ''FiAt'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'modelo',
+    'cod_modelo, cod_montadora, nome, ano',
+    '2, 2, ''Uno'', 2020'
+);
+
+
+SELECT INSERIR_DADOS(
+    'veiculo',
+    'cod_veiculo, cod_modelo, placa, cor',
+    '2, 2, ''abc1d23'', ''preto metálico'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'item',
+    'cod_item, cod_tipo_item, nome, preco, descricao, quantidade',
+    '2, 1, ''Pastilha de Freio'', 79.90, ''Pastilha dianteira para modelos até 2022'', 30'
+);
+
+
+INSERT INTO ORDEM_SERVICO (
+    COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO,
+    VALOR, DESCONTO
+) VALUES (
+    101, 1, 1, 1, '2025-07-02', 500.00, 0.00
+);
+

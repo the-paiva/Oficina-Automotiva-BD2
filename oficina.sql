@@ -104,6 +104,26 @@ CREATE TABLE ITEM_ORDEM
 );
 
 
+-- Função genérica para realizar operações de INSERT
+CREATE OR REPLACE FUNCTION INSERIR_DADOS
+(
+	P_TABELA TEXT, 
+	P_CAMPOS TEXT, 
+	P_VALORES TEXT
+) 
+RETURNS VOID AS
+$$
+BEGIN
+    EXECUTE FORMAT
+	(
+        'INSERT INTO %I (%s) VALUES (%s)',
+        P_TABELA, P_CAMPOS, P_VALORES
+    );
+END;
+$$ 
+LANGUAGE PLPGSQL;
+
+
 /*
 Normaliza o nome de uma tabela, fazendo com que a primeira letra de cada palavra
 seja maiúscula
@@ -117,7 +137,6 @@ BEGIN
 END;
 $$
 LANGUAGE PLPGSQL;
-
 
 
 -- Normaliza o e-mail de uma tabela fazendo com que todas as letras sejam minúsculas
@@ -299,7 +318,10 @@ AFTER INSERT OR UPDATE OR DELETE ON ITEM_ORDEM
 FOR EACH ROW
 EXECUTE FUNCTION CONTROLAR_ESTOQUE();
 
-
+/*
+Calcular o valor da ordem de serviço de acordo com os itens vinculados a essa ordem
+através da tabela ITEM_ORDEM
+*/
 CREATE OR REPLACE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO()
 RETURNS TRIGGER AS
 $$
@@ -455,4 +477,63 @@ CREATE OR REPLACE TRIGGER TRG_PARABENIZAR_CLIENTE_ANIVERSARIANTE
 BEFORE INSERT OR UPDATE ON CLIENTE
 FOR EACH ROW
 EXECUTE FUNCTION PARABENIZAR_CLIENTE_ANIVERSARIANTE();
+
+
+/*
+Aplica um desconto de 10% para a primeira ordem de serviço solicitada no mês do
+aniversário de um cliente
+*/
+CREATE OR REPLACE FUNCTION APLICAR_DESCONTO_DE_ANIVERSARIO()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    MES_NASCIMENTO INTEGER;
+    MES_EMISSAO INTEGER;
+    ANO_EMISSAO INTEGER;
+    JA_TEM_DESCONTO BOOLEAN;
+BEGIN
+    -- Extrai mês de nascimento do cliente
+    SELECT EXTRACT(MONTH FROM DT_NASC)
+    INTO MES_NASCIMENTO
+    FROM CLIENTE
+    WHERE COD_CLIENTE = NEW.COD_CLIENTE;
+
+    -- Extrai mês e ano da data de emissão
+    MES_EMISSAO = EXTRACT(MONTH FROM NEW.DATA_EMISSAO);
+    ANO_EMISSAO = EXTRACT(YEAR FROM NEW.DATA_EMISSAO);
+
+    -- Verifica se é o mês de aniversário
+    IF MES_EMISSAO = MES_NASCIMENTO THEN
+
+        -- Verifica se já existe uma ordem com desconto no mesmo mês/ano para esse cliente
+        SELECT EXISTS 
+		(
+            SELECT 1
+            FROM ORDEM_SERVICO
+            WHERE COD_CLIENTE = NEW.COD_CLIENTE
+            AND EXTRACT(MONTH FROM DATA_EMISSAO) = MES_EMISSAO
+			AND EXTRACT(YEAR FROM DATA_EMISSAO) = ANO_EMISSAO
+			AND DESCONTO > 0
+        ) 
+		INTO JA_TEM_DESCONTO;
+
+        -- Se ainda não tem, aplica o desconto
+        IF NOT JA_TEM_DESCONTO THEN
+            NEW.DESCONTO := NEW.VALOR * 0.10;
+			
+            RAISE NOTICE '🎉 Desconto de aniversário aplicado! 🎉';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+-- Trigger que executa a função APLICAR_DESCONTO_DE_ANIVERSARIO() na tabela ORDEM_SERVICO
+CREATE OR REPLACE TRIGGER TRG_APLICAR_DESCONTO_DE_ANIVERSARIO
+BEFORE INSERT ON ORDEM_SERVICO
+FOR EACH ROW
+EXECUTE FUNCTION APLICAR_DESCONTO_DE_ANIVERSARIO();
 
