@@ -124,6 +124,26 @@ $$
 LANGUAGE PLPGSQL;
 
 
+-- Função genérica para realizar operações de UPDATE
+CREATE OR REPLACE FUNCTION ATUALIZAR_DADOS
+(
+    p_tabela TEXT,
+    p_set TEXT,
+    p_where TEXT
+)
+RETURNS VOID AS
+$$
+BEGIN
+    EXECUTE FORMAT
+	(
+        'UPDATE %I SET %s WHERE %s',
+        p_tabela, p_set, p_where
+    );
+END;
+$$
+LANGUAGE plpgsql;
+
+
 /*
 Normaliza o nome de uma tabela, fazendo com que a primeira letra de cada palavra
 seja maiúscula

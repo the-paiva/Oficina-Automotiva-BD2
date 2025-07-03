@@ -134,6 +134,15 @@ VALUES
 );
 
 
+INSERT INTO ORDEM_SERVICO (
+    COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO,
+    VALOR, DESCONTO
+) VALUES (
+    101, 1, 1, 1, '2025-07-02', 500.00, 0.00
+);
+
+
+
 UPDATE ITEM_ORDEM
 SET QUANTIDADE = 4
 WHERE COD_ITEM_ORDEM = 1;
@@ -219,10 +228,104 @@ SELECT INSERIR_DADOS(
 );
 
 
-INSERT INTO ORDEM_SERVICO (
-    COD_ORDEM_SERVICO, COD_CLIENTE, COD_FUNCIONARIO, COD_VEICULO, DATA_EMISSAO,
-    VALOR, DESCONTO
-) VALUES (
-    101, 1, 1, 1, '2025-07-02', 500.00, 0.00
+SELECT INSERIR_DADOS(
+    'ordem_servico',
+    'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto',
+    '3, 2, 2, 2, ''2025-07-01'', 0.00, 0.00'
+);
+
+
+SELECT INSERIR_DADOS(
+    'item_ordem',
+    'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+    '3, 3, 2, 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'cliente',
+    'nome = ''Joana Atualizada'', telefone = ''99999-0000''',
+    'cod_cliente = 10'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'funcionario',
+    'nome = ''Carlos Souza'', email = ''carlosnovo@ifpi.edu.br''',
+    'cod_funcionario = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'funcionario',
+    'dt_nasc = ''1990-07-04''',
+    'cod_funcionario IN(1, 2)'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'montadora',
+    'nome = ''Fiat India''',
+    'cod_montadora = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'modelo',
+    'nome = ''Onix Plus'', ano = 2023',
+    'cod_modelo = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'veiculo',
+    'cor = ''branco pérola''',
+    'cod_veiculo = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item',
+    'preco = 89.90, quantidade = 25',
+    'cod_item = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item',
+    'quantidade = 30',
+    'cod_item = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'ordem_servico',
+    'cod_funcionario = 2, desconto = 40.50',
+    'cod_ordem_servico = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'ordem_servico',
+    'desconto = 50',
+    'cod_ordem_servico = 1'
+);
+
+
+CREATE OR REPLACE VIEW TABELA_OS_COM_VALOR_FINAL AS
+SELECT *, VALOR - DESCONTO AS VALOR_FINAL
+FROM ORDEM_SERVICO;
+
+
+SELECT *
+FROM TABELA_OS_COM_VALOR_FINAL
+WHERE COD_ORDEM_SERVICO = 1;
+
+
+
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 3',
+    'cod_item_ordem = 1'
 );
 
