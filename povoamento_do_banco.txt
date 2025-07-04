@@ -187,6 +187,13 @@ SELECT INSERIR_DADOS(
 
 
 SELECT INSERIR_DADOS(
+    'funcionario',
+    'cod_funcionario, cpf, nome, dt_nasc, telefone, email',
+    '3, ''131.776.053-00'', ''Antônio Nivaldo'', ''1958-05-10'', ''99321-0741'', ''nini@outlook.com'''
+);
+
+
+SELECT INSERIR_DADOS(
 	'cliente',
 	'cod_cliente, cpf, nome, dt_nasc, telefone, email',
 	'2, ''184.212.883-34'', ''Daci'', ''1963-05-21'', ''(86)99434-5432'', ''dada@gmail.com'''
@@ -246,6 +253,20 @@ SELECT INSERIR_DADOS(
     'item_ordem',
     'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
     '3, 3, 2, 2'
+);
+
+
+SELECT INSERIR_DADOS(
+    'item',
+    'cod_item, cod_tipo_item, nome, preco, descricao, quantidade',
+    '3, 1, ''Motor'', 207.90, ''Motorzinho vraum-vraum-vraum'', -10'
+);
+
+
+SELECT INSERIR_DADOS(
+    'item_ordem',
+    'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+    '4, 2, 2, -5'
 );
 
 
@@ -319,6 +340,14 @@ SELECT ATUALIZAR_DADOS(
 );
 
 
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 5',
+    'cod_item_ordem = 1'
+);
+
+
+
 CREATE OR REPLACE VIEW TABELA_OS_COM_VALOR_FINAL AS
 SELECT *, VALOR - DESCONTO AS VALOR_FINAL
 FROM ORDEM_SERVICO;
@@ -334,6 +363,18 @@ SELECT ATUALIZAR_DADOS(
     'item_ordem',
     'quantidade = 3',
     'cod_item_ordem = 1'
+);
+
+
+SELECT DELETAR_DADOS(
+	'cliente',
+	'cod_cliente = 99'
+)
+
+
+SELECT DELETAR_DADOS(
+	'item',
+	'cod_item = 3'
 );
 
 
@@ -355,4 +396,5 @@ SET QUANTIDADE = 2
 WHERE COD_ORDEM_SERVICO = 3
 
 SELECT * FROM ORDEM_SERVICO
+SELECT * FROM log_registro ORDER BY data_log DESC;
 

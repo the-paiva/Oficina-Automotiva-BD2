@@ -480,6 +480,10 @@ $$
 LANGUAGE PLPGSQL;
 
 
+/*
+Registra os logs do sistema, disponibilizando um histórico de informações sobre
+as movimentações realizadas no banco.
+*/
 CREATE OR REPLACE FUNCTION registrar_log()
 RETURNS TRIGGER AS
 $$
@@ -519,6 +523,50 @@ BEGIN
     END IF;
 
     RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
+/*
+Retorna uma mensagem de erro personalizado caso haja a tentativa de inserir uma chave
+primária que já existe no sistema.
+*/
+CREATE OR REPLACE FUNCTION impedir_pk_duplicada()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    pk_coluna TEXT;
+    pk_valor TEXT;
+    existe_pk BOOLEAN;
+BEGIN
+    -- Descobre o nome da coluna da chave primária
+    SELECT key_column_usage.column_name
+    INTO pk_coluna
+    FROM information_schema.table_constraints,
+         information_schema.key_column_usage
+    WHERE table_constraints.constraint_name = key_column_usage.constraint_name
+      AND table_constraints.table_name = key_column_usage.table_name
+      AND table_constraints.table_name = TG_TABLE_NAME
+      AND table_constraints.constraint_type = 'PRIMARY KEY'
+    LIMIT 1;
+
+    -- Obtém o valor do NEW.<pk_coluna>
+    EXECUTE FORMAT('SELECT ($1).%I::TEXT', pk_coluna)
+    INTO pk_valor
+    USING NEW;
+
+    -- Verifica se o valor já existe
+    EXECUTE FORMAT(
+        'SELECT EXISTS (SELECT 1 FROM %I WHERE %I = %L)',
+        TG_TABLE_NAME, pk_coluna, pk_valor
+    )
+    INTO existe_pk;
+
+    IF existe_pk THEN
+        RAISE EXCEPTION 'A chave primária informada já está cadastrada no sistema';
+    END IF;
+
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -699,4 +747,87 @@ FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
 CREATE OR REPLACE TRIGGER TRG_LOG_VEICULO
 AFTER INSERT OR UPDATE OR DELETE ON VEICULO
 FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela CLIENTE
+CREATE TRIGGER trg_impedir_pk_cliente
+BEFORE INSERT ON cliente
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela FUNCIONARIO
+CREATE TRIGGER trg_impedir_pk_funcionario
+BEFORE INSERT ON funcionario
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela VEICULO
+CREATE TRIGGER trg_impedir_pk_veiculo
+BEFORE INSERT ON veiculo
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MODELO
+CREATE TRIGGER trg_impedir_pk_modelo
+BEFORE INSERT ON modelo
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MONTADORA
+CREATE TRIGGER trg_impedir_pk_montadora
+BEFORE INSERT ON montadora
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM
+CREATE TRIGGER trg_impedir_pk_item
+BEFORE INSERT ON item
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela TIPO_ITEM
+CREATE TRIGGER trg_impedir_pk_tipo_item
+BEFORE INSERT ON tipo_item
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ORDEM_SERVICO
+CREATE TRIGGER trg_impedir_pk_ordem_servico
+BEFORE INSERT ON ordem_servico
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM_ORDEM
+CREATE TRIGGER trg_impedir_pk_item_ordem
+BEFORE INSERT ON item_ordem
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Impede que um item tenha uma quantidade negativa no estoque
+CREATE OR REPLACE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM()
+RETURNS TRIGGER AS
+$$
+BEGIN
+	IF NEW.QUANTIDADE < 0 THEN
+		RAISE EXCEPTION 'Um item não pode ter uma quantidade negativa';
+	END IF;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+-- Trigger que executa a função IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM() na tabela ITEM
+CREATE OR REPLACE TRIGGER TRG_IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM
+BEFORE INSERT OR UPDATE ON ITEM
+FOR EACH ROW
+EXECUTE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM();
 
