@@ -194,6 +194,13 @@ SELECT INSERIR_DADOS(
 
 
 SELECT INSERIR_DADOS(
+	'cliente',
+	'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+	'3, ''123.456.789-00'', ''Rodrigo Sá'', ''2000-06-12'', ''(86)99563-1290'', ''rodrgsak@gaymail.com'''
+);
+
+
+SELECT INSERIR_DADOS(
     'funcionario',
     'cod_funcionario, cpf, nome, dt_nasc, telefone, email',
     '2, ''987.654.321-00'', ''Carlos Silva'', ''1985-03-22'', ''99888-7766'', ''carlos@ifpi.edu.br'''
@@ -328,4 +335,24 @@ SELECT ATUALIZAR_DADOS(
     'quantidade = 3',
     'cod_item_ordem = 1'
 );
+
+
+SELECT *
+FROM MONTADORA
+JOIN MODELO ON MONTADORA.COD_MONTADORA = MODELO.COD_MONTADORA
+JOIN VEICULO ON MODELO.COD_MODELO = VEICULO.COD_MODELO;
+
+
+SELECT * FROM ITEM
+SELECT * FROM ITEM_ORDEM
+
+UPDATE item_ordem
+SET QUANTIDADE = 1
+WHERE COD_ORDEM_SERVICO = 3
+
+UPDATE item_ordem
+SET QUANTIDADE = 2
+WHERE COD_ORDEM_SERVICO = 3
+
+SELECT * FROM ORDEM_SERVICO
 
