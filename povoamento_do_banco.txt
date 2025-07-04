@@ -270,6 +270,13 @@ SELECT INSERIR_DADOS(
 );
 
 
+SELECT INSERIR_DADOS(
+    'item_ordem',
+    'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+    '5, 2, 2, -5'
+);
+
+
 SELECT ATUALIZAR_DADOS(
     'cliente',
     'nome = ''Joana Atualizada'', telefone = ''99999-0000''',
@@ -363,6 +370,13 @@ SELECT ATUALIZAR_DADOS(
     'item_ordem',
     'quantidade = 3',
     'cod_item_ordem = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 5',
+    'cod_item_ordem = 4'
 );
 
 
