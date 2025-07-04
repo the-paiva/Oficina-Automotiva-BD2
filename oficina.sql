@@ -571,6 +571,43 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- Função genérica para a criação de usuários e sua inserção em um grupo
+CREATE OR REPLACE FUNCTION criar_usuario(
+    p_usuario TEXT,
+    p_senha TEXT,
+    p_grupo TEXT
+) RETURNS VOID AS
+$$
+DECLARE
+    grupo_existe BOOLEAN;
+    usuario_existe BOOLEAN;
+BEGIN
+    -- Verifica se o grupo já existe
+    SELECT EXISTS (
+        SELECT 1 FROM pg_roles WHERE rolname = p_grupo
+    ) INTO grupo_existe;
+
+    IF NOT grupo_existe THEN
+        RAISE EXCEPTION 'Grupo informado não existe';
+    END IF;
+
+    -- Verifica se o usuário já existe
+    SELECT EXISTS (
+        SELECT 1 FROM pg_roles WHERE rolname = p_usuario
+    ) INTO usuario_existe;
+
+    IF NOT usuario_existe THEN
+        EXECUTE FORMAT('CREATE ROLE %I WITH LOGIN PASSWORD %L;', p_usuario, p_senha);
+    ELSE
+        RAISE EXCEPTION 'Usuário "%" já existe.', p_usuario;
+    END IF;
+
+    -- Adiciona o usuário ao grupo
+    EXECUTE FORMAT('GRANT %I TO %I;', p_grupo, p_usuario);
+END;
+$$ LANGUAGE plpgsql;
+
+
 -----------------------------------------------------------------------------------------
 --                                    TRIGGERS
 -----------------------------------------------------------------------------------------
@@ -839,4 +876,42 @@ CREATE OR REPLACE TRIGGER TRG_IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM_ORDEM
 BEFORE INSERT OR UPDATE ON ITEM_ORDEM
 FOR EACH ROW
 EXECUTE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM();
+
+
+-----------------------------------------------------------------------------------------
+--                               CONTROLE DE ACESSO
+-----------------------------------------------------------------------------------------
+
+
+-- Criação dos grupos
+CREATE ROLE atendente;
+CREATE ROLE gerente;
+
+
+-- Criação dos usuários
+SELECT criar_usuario('anacarolina', '4n4c4r0l1n4', 'atendente');
+SELECT criar_usuario('carlossouza', 'c4rl0s', 'gerente');
+
+
+-- Permissões para o grupo ATENDENTE
+GRANT CONNECT ON DATABASE "OficinaAutomotiva" TO atendente;
+GRANT USAGE ON SCHEMA public TO atendente;
+GRANT SELECT, INSERT, UPDATE ON cliente TO atendente;
+GRANT SELECT ON item TO atendente;
+GRANT SELECT, UPDATE, DELETE ON item_ordem TO atendente;
+GRANT SELECT, INSERT, UPDATE ON veiculo TO atendente;
+GRANT SELECT, INSERT, UPDATE ON modelo TO atendente;
+GRANT SELECT, INSERT, UPDATE ON montadora TO atendente;
+GRANT SELECT, INSERT, UPDATE ON ordem_servico TO atendente;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE ON TABLES TO atendente;
+
+
+-- Permissões para o grupo GERENTE
+GRANT CONNECT ON DATABASE "OficinaAutomotiva" TO gerente;
+GRANT USAGE ON SCHEMA public TO gerente;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gerente;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gerente;
+GRANT SELECT ON log_registro TO gerente;
 
