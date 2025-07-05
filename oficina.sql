@@ -1034,3 +1034,33 @@ JOIN cliente c ON o.cod_cliente = c.cod_cliente
 WHERE o.valor > 0
 ORDER BY percentual_desconto DESC;
 
+
+-- Log simplificado para verificar as 50 operações mais recentes do sistema
+CREATE OR REPLACE VIEW vw_logs_recentes AS
+SELECT 
+    id,
+    tabela_nome,
+    operacao,
+    chave_primaria,
+    usuario,
+    data_log
+FROM log_registro
+ORDER BY data_log DESC
+LIMIT 50;
+
+
+-- Associa clientes aos seus respectivos veículos
+CREATE OR REPLACE VIEW vw_veiculos_clientes AS
+SELECT 
+    v.cod_veiculo,
+    v.placa,
+    v.cor,
+    m.nome AS modelo,
+    mo.nome AS montadora,
+    c.nome AS cliente
+FROM veiculo v
+JOIN modelo m ON m.cod_modelo = v.cod_modelo
+JOIN montadora mo ON mo.cod_montadora = m.cod_montadora
+JOIN ordem_servico os ON os.cod_veiculo = v.cod_veiculo
+JOIN cliente c ON c.cod_cliente = os.cod_cliente;
+

@@ -590,33 +590,35 @@ SELECT INSERIR_DADOS
 );
 
 
-SELECT INSERIR_DADOS(
+SELECT INSERIR_DADOS
+(
     'ordem_servico',
     'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto',
     '6, 11, 5, 7, ''2025-03-08'', 0.00, 0.00'
 );
 
-SELECT INSERIR_DADOS(
+
+SELECT INSERIR_DADOS
+(
     'ordem_servico',
     'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto',
     '7, 12, 6, 8, ''2024-12-23'', 0.00, 0.00'
 );
 
-SELECT INSERIR_DADOS(
+SELECT INSERIR_DADOS
+(
     'ordem_servico',
     'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto',
     '8, 13, 7, 9, ''2025-09-30'', 0.00, 0.00'
 );
 
-SELECT INSERIR_DADOS(
+
+SELECT INSERIR_DADOS
+(
     'ordem_servico',
     'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto',
     '9, 14, 8, 10, ''2025-04-13'', 0.00, 0.00'
 );
-
-
-SELECT * FROM ORDEM_SERVICO
-
 
 
 SELECT INSERIR_DADOS
@@ -1077,6 +1079,8 @@ SELECT * FROM vw_faturamento_mensal
 SELECT * FROM vw_clientes_mais_ordens
 SELECT * FROM vw_itens_mais_usados
 SELECT * FROM vw_faturamento_funcionario
+SELECT * FROM vw_logs_recentes
+SELECT * FROM vw_veiculos_clientes
 SELECT * FROM ITENS_DA_ORDEM(1)
 SELECT * FROM ITEM
 
