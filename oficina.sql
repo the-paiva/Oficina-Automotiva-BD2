@@ -122,11 +122,6 @@ CREATE TABLE log_registro (
 );
 
 
-DROP TABLE log_registro
-
-
-
-
 -----------------------------------------------------------------------------------------
 --                                    FUNÇÕES
 -----------------------------------------------------------------------------------------
@@ -559,6 +554,8 @@ $$ LANGUAGE plpgsql;
 
 
 
+DROP FUNCTION IMPEDIR_PK_DUPLICADA()
+
 /*
 Retorna uma mensagem de erro personalizado caso haja a tentativa de inserir uma chave
 primária que já existe no sistema.
@@ -636,6 +633,48 @@ BEGIN
 
     -- Adiciona o usuário ao grupo
     EXECUTE FORMAT('GRANT %I TO %I;', p_grupo, p_usuario);
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION itens_da_ordem(p_cod_ordem INTEGER)
+RETURNS TABLE (
+    nome_item VARCHAR,
+    quantidade INTEGER,
+    preco_unitario FLOAT,
+    valor_total_item FLOAT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        i.nome,
+        io.quantidade,
+        i.preco,
+        io.quantidade * i.preco AS valor_total_item
+    FROM 
+        item_ordem io
+    JOIN 
+        item i ON i.cod_item = io.cod_item
+    WHERE 
+        io.cod_ordem_servico = p_cod_ordem;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION impedir_item_duplicado()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM item_ordem
+        WHERE cod_ordem_servico = NEW.cod_ordem_servico
+          AND cod_item = NEW.cod_item
+    ) THEN
+        RAISE EXCEPTION 
+            'Item já inserido na ordem. Considere alterar a quantidade.';
+    END IF;
+
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -818,69 +857,6 @@ AFTER INSERT OR UPDATE OR DELETE ON VEICULO
 FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
 
 
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela CLIENTE
-CREATE OR REPLACE TRIGGER trg_impedir_pk_cliente
-BEFORE INSERT ON cliente
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela FUNCIONARIO
-CREATE OR REPLACE TRIGGER trg_impedir_pk_funcionario
-BEFORE INSERT ON funcionario
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela VEICULO
-CREATE OR REPLACE TRIGGER trg_impedir_pk_veiculo
-BEFORE INSERT ON veiculo
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MODELO
-CREATE OR REPLACE TRIGGER trg_impedir_pk_modelo
-BEFORE INSERT ON modelo
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MONTADORA
-CREATE OR REPLACE TRIGGER trg_impedir_pk_montadora
-BEFORE INSERT ON montadora
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM
-CREATE OR REPLACE TRIGGER trg_impedir_pk_item
-BEFORE INSERT ON item
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela TIPO_ITEM
-CREATE OR REPLACE TRIGGER trg_impedir_pk_tipo_item
-BEFORE INSERT ON tipo_item
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ORDEM_SERVICO
-CREATE OR REPLACE TRIGGER trg_impedir_pk_ordem_servico
-BEFORE INSERT ON ordem_servico
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
--- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM_ORDEM
-CREATE OR REPLACE TRIGGER trg_impedir_pk_item_ordem
-BEFORE INSERT ON item_ordem
-FOR EACH ROW
-EXECUTE FUNCTION impedir_pk_duplicada();
-
-
 -- Impede que um item tenha uma quantidade negativa no estoque
 CREATE OR REPLACE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM()
 RETURNS TRIGGER AS
@@ -908,6 +884,13 @@ CREATE OR REPLACE TRIGGER TRG_IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM_ORDEM
 BEFORE INSERT OR UPDATE ON ITEM_ORDEM
 FOR EACH ROW
 EXECUTE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM();
+
+
+-- Trigger que executa a função IMPEDIR_ITEM_DUPLICADO() na tabela ITEM_ORDEM
+CREATE TRIGGER trg_impedir_item_duplicado
+BEFORE INSERT ON item_ordem
+FOR EACH ROW
+EXECUTE FUNCTION impedir_item_duplicado();
 
 
 -----------------------------------------------------------------------------------------
@@ -946,4 +929,108 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gerente;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gerente;
 GRANT SELECT ON log_registro TO gerente;
+
+
+-----------------------------------------------------------------------------------------
+--										VIEWS
+-----------------------------------------------------------------------------------------
+
+-- Retorna as ordens de serviço com o valor final (valor total - desconto)
+CREATE OR REPLACE VIEW TABELA_OS_COM_VALOR_FINAL AS
+SELECT *, VALOR - DESCONTO AS VALOR_FINAL
+FROM ORDEM_SERVICO;
+
+
+-- Retorna a lista de clientes por quantidade de ordens de serviços em ordem decrescente
+CREATE OR REPLACE VIEW vw_clientes_mais_ordens AS
+SELECT 
+    c.nome AS cliente,
+    COUNT(o.cod_ordem_servico) AS total_ordens
+FROM 
+    cliente c
+JOIN 
+    ordem_servico o ON c.cod_cliente = o.cod_cliente
+GROUP BY 
+    c.nome
+ORDER BY 
+    total_ordens DESC;
+
+
+-- Retorna a lista de itens por quantidade usada em ordem decrescente
+CREATE OR REPLACE VIEW vw_itens_mais_usados AS
+SELECT 
+    i.nome AS item,
+    SUM(io.quantidade) AS total_usado
+FROM 
+    item i
+JOIN 
+    item_ordem io ON i.cod_item = io.cod_item
+GROUP BY 
+    i.nome
+ORDER BY 
+    total_usado DESC;
+
+
+/*
+Retorna o quanto cada funcionário faturou de acordo com os valores de suas respectivas
+ordens de serviço
+*/
+CREATE OR REPLACE VIEW vw_faturamento_funcionario AS
+SELECT 
+    f.nome AS funcionario,
+    COUNT(o.cod_ordem_servico) AS ordens_emitidas,
+    ROUND(SUM((o.valor - o.desconto)::NUMERIC), 2) AS valor_total_recebido
+FROM 
+    funcionario f
+JOIN 
+    ordem_servico o ON f.cod_funcionario = o.cod_funcionario
+GROUP BY 
+    f.nome
+ORDER BY 
+    valor_total_recebido DESC;
+
+
+/*
+Retorna a lista de itens e suas respectivas quantidades, avisando também sobre a
+situação do estoque (se está OK ou com baixo estoque)
+*/
+CREATE OR REPLACE VIEW vw_estoque_itens AS
+SELECT 
+    cod_item,
+    nome,
+    quantidade,
+    CASE 
+        WHEN quantidade < 5 THEN 
+			'⚠️ Baixo Estoque'
+        ELSE 
+			'OK'
+    END AS status_estoque
+FROM item
+ORDER BY quantidade ASC;
+
+
+-- Retorna o faturamento total da oficina de cada mês
+CREATE OR REPLACE VIEW vw_faturamento_mensal AS
+SELECT 
+    TO_CHAR(data_emissao, 'TMMonth') AS mes_nome,
+    EXTRACT(YEAR FROM data_emissao) AS ano,
+    COUNT(*) AS total_ordens,
+    ROUND(SUM(valor - desconto)::NUMERIC, 2) AS faturamento
+FROM ordem_servico
+GROUP BY mes_nome, ano
+ORDER BY ano DESC, mes_nome;
+
+
+-- Retorna as ordens de serviço com seus respectivos descontos em ordem decrescente
+CREATE OR REPLACE VIEW vw_ordens_maior_desconto AS
+SELECT 
+    o.cod_ordem_servico,
+    c.nome AS cliente,
+    o.valor,
+    o.desconto,
+    ROUND(((o.desconto / o.valor) * 100)::NUMERIC, 2) AS percentual_desconto
+FROM ordem_servico o
+JOIN cliente c ON o.cod_cliente = c.cod_cliente
+WHERE o.valor > 0
+ORDER BY percentual_desconto DESC;
 
