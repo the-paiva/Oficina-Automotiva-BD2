@@ -547,35 +547,40 @@ SELECT ATUALIZAR_DADOS(
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'item',
     'preco = 89.90, quantidade = 25',
     'cod_item = 2'
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'item',
     'quantidade = 30',
     'cod_item = 2'
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'ordem_servico',
     'cod_funcionario = 2, desconto = 40.50',
     'cod_ordem_servico = 1'
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'ordem_servico',
     'desconto = 50',
     'cod_ordem_servico = 1'
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'item_ordem',
     'quantidade = 5',
     'cod_item_ordem = 1'
@@ -594,46 +599,89 @@ WHERE COD_ORDEM_SERVICO = 1;
 
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'item_ordem',
     'quantidade = 3',
     'cod_item_ordem = 1'
 );
 
 
-SELECT ATUALIZAR_DADOS(
+SELECT ATUALIZAR_DADOS
+(
     'item_ordem',
     'quantidade = 5',
     'cod_item_ordem = 4'
 );
 
 
-SELECT DELETAR_DADOS(
+SELECT DELETAR_DADOS
+(
 	'cliente',
 	'cod_cliente = 99'
 )
 
 
-SELECT DELETAR_DADOS(
+SELECT DELETAR_DADOS
+(
 	'item',
 	'cod_item = 3'
 );
 
 
-SELECT *
-FROM MONTADORA
-JOIN MODELO ON MONTADORA.COD_MONTADORA = MODELO.COD_MONTADORA
-JOIN VEICULO ON MODELO.COD_MODELO = VEICULO.COD_MODELO;
+SELECT DELETAR_DADOS
+(
+	'log_registro',
+	NULL
+);
 
 
-SELECT * FROM ITEM
-SELECT * FROM ITEM_ORDEM
+SELECT INSERIR_DADOS(
+	'cliente',
+	'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+	'8, ''888.888.888-88'', ''Creuza Martins'', ''1968-03-25'', ''(86)99999-1006'', ''creucreu@gmail.com'''
+);
 
-UPDATE item_ordem
-SET QUANTIDADE = 1
-WHERE COD_ORDEM_SERVICO = 3
 
-UPDATE item_ordem
-SET QUANTIDADE = 2
-WHERE COD_ORDEM_SERVICO = 3
+SELECT ATUALIZAR_DADOS(
+    'cliente',
+    'nome = ''Darcy''',
+    'cpf = ''184.212.883-34'' '
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'funcionario',
+    'nome = ''Antônio Ribeiro''',
+    'cod_funcionario = 3'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'modelo',
+    'ano = 2021',
+    'cod_modelo = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'montadora',
+    'nome = ''Fiat''',
+    'cod_montadora = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item',
+    'preco = 85',
+    'cod_item = 3'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 3',
+    'cod_item_ordem = 3'
+);
+
 

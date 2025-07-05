@@ -117,8 +117,12 @@ CREATE TABLE log_registro (
     chave_primaria TEXT,
     dados_antigos JSONB,
     dados_novos JSONB,
-    data_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    data_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	usuario TEXT
 );
+
+
+DROP TABLE log_registro
 
 
 
@@ -169,19 +173,22 @@ LANGUAGE plpgsql;
 
 
 -- Função genérica para realizar operações de DELETE
-CREATE OR REPLACE FUNCTION DELETAR_DADOS(
+CREATE OR REPLACE FUNCTION deletar_dados(
     p_tabela TEXT,
     p_where TEXT
 ) RETURNS VOID AS
 $$
 BEGIN
-    EXECUTE FORMAT(
-        'DELETE FROM %I WHERE %s',
-        p_tabela, p_where
-    );
+    IF p_where IS NULL OR TRIM(p_where) = '' THEN
+        -- DELETE sem WHERE (deleta tudo)
+        EXECUTE FORMAT('DELETE FROM %I', p_tabela);
+    ELSE
+        -- DELETE com WHERE
+        EXECUTE FORMAT('DELETE FROM %I WHERE %s', p_tabela, p_where);
+    END IF;
 END;
-$$
-LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
+
 
 
 /*
@@ -506,14 +513,14 @@ $$ LANGUAGE plpgsql;
 Registra os logs do sistema, disponibilizando um histórico de informações sobre
 as movimentações realizadas no banco.
 */
-CREATE OR REPLACE FUNCTION registrar_log()
+CREATE OR REPLACE FUNCTION registrar_log() 
 RETURNS TRIGGER AS
 $$
 DECLARE
     v_primary_key_column TEXT;
     v_primary_key_value TEXT;
 BEGIN
-    -- Obter o nome da coluna da chave primária da tabela
+    -- Obter o nome da coluna da chave primária
     SELECT kcu.column_name
     INTO v_primary_key_column
     FROM information_schema.table_constraints tc
@@ -529,24 +536,27 @@ BEGIN
     INTO v_primary_key_value
     USING CASE WHEN TG_OP = 'INSERT' THEN NEW ELSE OLD END;
 
-    -- Inserir log conforme o tipo de operação
+    -- Inserir log com base na operação
     IF TG_OP = 'INSERT' THEN
-        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_novos)
-        VALUES (TG_TABLE_NAME, 'CADASTRO', v_primary_key_value, TO_JSONB(NEW));
+        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_novos, usuario)
+        VALUES (TG_TABLE_NAME, 'CADASTRO', v_primary_key_value, TO_JSONB(NEW), CURRENT_USER);
         RETURN NEW;
+
     ELSIF TG_OP = 'UPDATE' THEN
-        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_antigos, dados_novos)
-        VALUES (TG_TABLE_NAME, 'ATUALIZAÇÃO', v_primary_key_value, TO_JSONB(OLD), TO_JSONB(NEW));
+        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_antigos, dados_novos, usuario)
+        VALUES (TG_TABLE_NAME, 'ATUALIZAÇÃO', v_primary_key_value, TO_JSONB(OLD), TO_JSONB(NEW), CURRENT_USER);
         RETURN NEW;
+
     ELSIF TG_OP = 'DELETE' THEN
-        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_antigos)
-        VALUES (TG_TABLE_NAME, 'REMOÇÃO', v_primary_key_value, TO_JSONB(OLD));
+        INSERT INTO log_registro (tabela_nome, operacao, chave_primaria, dados_antigos, usuario)
+        VALUES (TG_TABLE_NAME, 'REMOÇÃO', v_primary_key_value, TO_JSONB(OLD), CURRENT_USER);
         RETURN OLD;
     END IF;
 
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
 
 
 /*
@@ -936,5 +946,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gerente;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gerente;
 GRANT SELECT ON log_registro TO gerente;
-
 
