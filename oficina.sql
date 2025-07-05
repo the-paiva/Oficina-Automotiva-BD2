@@ -428,56 +428,78 @@ $$
 LANGUAGE PLPGSQL;
 
 
-/*
-Aplica um desconto de 10% para a primeira ordem de serviço solicitada no mês do
-aniversário de um cliente
-*/
-CREATE OR REPLACE FUNCTION APLICAR_DESCONTO_DE_ANIVERSARIO()
+
+CREATE OR REPLACE FUNCTION atualizar_valor_ordem()
 RETURNS TRIGGER AS
 $$
 DECLARE
-    MES_NASCIMENTO INTEGER;
-    MES_EMISSAO INTEGER;
-    ANO_EMISSAO INTEGER;
-    JA_TEM_DESCONTO BOOLEAN;
+    total NUMERIC := 0;
+    ordem_id INTEGER;
+    mes_nascimento INTEGER;
+    mes_emissao INTEGER;
+    ano_emissao INTEGER;
+    ja_tem_desconto BOOLEAN;
 BEGIN
-    -- Extrai mês de nascimento do cliente
-    SELECT EXTRACT(MONTH FROM DT_NASC)
-    INTO MES_NASCIMENTO
-    FROM CLIENTE
-    WHERE COD_CLIENTE = NEW.COD_CLIENTE;
+    -- Identifica a ordem de serviço a ser atualizada
+    IF TG_OP = 'DELETE' THEN
+        ordem_id := OLD.cod_ordem_servico;
+    ELSE
+        ordem_id := NEW.cod_ordem_servico;
+    END IF;
 
-    -- Extrai mês e ano da data de emissão
-    MES_EMISSAO = EXTRACT(MONTH FROM NEW.DATA_EMISSAO);
-    ANO_EMISSAO = EXTRACT(YEAR FROM NEW.DATA_EMISSAO);
+    -- Calcula o valor total da O.S.
+    SELECT SUM(item_ordem.quantidade * item.preco)
+    INTO total
+    FROM item_ordem
+    JOIN item ON item.cod_item = item_ordem.cod_item
+    WHERE item_ordem.cod_ordem_servico = ordem_id;
 
-    -- Verifica se é o mês de aniversário
-    IF MES_EMISSAO = MES_NASCIMENTO THEN
+    -- Atualiza o valor (sem aplicar desconto ainda)
+    UPDATE ordem_servico
+    SET valor = COALESCE(total, 0)
+    WHERE cod_ordem_servico = ordem_id;
 
-        -- Verifica se já existe uma ordem com desconto no mesmo mês/ano para esse cliente
-        SELECT EXISTS 
-		(
+    -- Pega o mês de nascimento do cliente
+    SELECT EXTRACT(MONTH FROM cliente.dt_nasc)
+    INTO mes_nascimento
+    FROM ordem_servico
+    JOIN cliente ON cliente.cod_cliente = ordem_servico.cod_cliente
+    WHERE ordem_servico.cod_ordem_servico = ordem_id;
+
+    -- Pega o mês e ano da emissão da O.S.
+    SELECT EXTRACT(MONTH FROM data_emissao), EXTRACT(YEAR FROM data_emissao)
+    INTO mes_emissao, ano_emissao
+    FROM ordem_servico
+    WHERE cod_ordem_servico = ordem_id;
+
+    -- Verifica se é mês de aniversário e se ainda não tem desconto
+    IF mes_emissao = mes_nascimento THEN
+        SELECT EXISTS (
             SELECT 1
-            FROM ORDEM_SERVICO
-            WHERE COD_CLIENTE = NEW.COD_CLIENTE
-            AND EXTRACT(MONTH FROM DATA_EMISSAO) = MES_EMISSAO
-			AND EXTRACT(YEAR FROM DATA_EMISSAO) = ANO_EMISSAO
-			AND DESCONTO > 0
-        ) 
-		INTO JA_TEM_DESCONTO;
+            FROM ordem_servico os
+            WHERE os.cod_cliente = (
+                SELECT cod_cliente FROM ordem_servico WHERE cod_ordem_servico = ordem_id
+            )
+            AND EXTRACT(MONTH FROM os.data_emissao) = mes_emissao
+            AND EXTRACT(YEAR FROM os.data_emissao) = ano_emissao
+            AND os.desconto > 0
+            AND os.cod_ordem_servico <> ordem_id
+        ) INTO ja_tem_desconto;
 
-        -- Se ainda não tem, aplica o desconto
-        IF NOT JA_TEM_DESCONTO THEN
-            NEW.DESCONTO := NEW.VALOR * 0.10;
-			
+        IF NOT ja_tem_desconto THEN
+            -- Aplica o desconto de 10% na ordem atual
+            UPDATE ordem_servico
+            SET desconto = total * 0.10
+            WHERE cod_ordem_servico = ordem_id;
+
             RAISE NOTICE '🎉 Desconto de aniversário aplicado! 🎉';
         END IF;
     END IF;
 
-    RETURN NEW;
+    RETURN NULL;
 END;
-$$
-LANGUAGE PLPGSQL;
+$$ LANGUAGE plpgsql;
+
 
 
 /*
@@ -725,11 +747,11 @@ FOR EACH ROW
 EXECUTE FUNCTION PARABENIZAR_CLIENTE_ANIVERSARIANTE();
 
 
--- Trigger que executa a função APLICAR_DESCONTO_DE_ANIVERSARIO() na tabela ORDEM_SERVICO
-CREATE OR REPLACE TRIGGER TRG_APLICAR_DESCONTO_DE_ANIVERSARIO
-BEFORE INSERT ON ORDEM_SERVICO
+CREATE OR REPLACE TRIGGER trg_calcular_valor_de_ordem_de_servico
+AFTER INSERT OR UPDATE OR DELETE ON item_ordem
 FOR EACH ROW
-EXECUTE FUNCTION APLICAR_DESCONTO_DE_ANIVERSARIO();
+EXECUTE FUNCTION atualizar_valor_ordem();
+
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela CLIENTE
@@ -787,63 +809,63 @@ FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela CLIENTE
-CREATE TRIGGER trg_impedir_pk_cliente
+CREATE OR REPLACE TRIGGER trg_impedir_pk_cliente
 BEFORE INSERT ON cliente
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela FUNCIONARIO
-CREATE TRIGGER trg_impedir_pk_funcionario
+CREATE OR REPLACE TRIGGER trg_impedir_pk_funcionario
 BEFORE INSERT ON funcionario
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela VEICULO
-CREATE TRIGGER trg_impedir_pk_veiculo
+CREATE OR REPLACE TRIGGER trg_impedir_pk_veiculo
 BEFORE INSERT ON veiculo
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MODELO
-CREATE TRIGGER trg_impedir_pk_modelo
+CREATE OR REPLACE TRIGGER trg_impedir_pk_modelo
 BEFORE INSERT ON modelo
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MONTADORA
-CREATE TRIGGER trg_impedir_pk_montadora
+CREATE OR REPLACE TRIGGER trg_impedir_pk_montadora
 BEFORE INSERT ON montadora
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM
-CREATE TRIGGER trg_impedir_pk_item
+CREATE OR REPLACE TRIGGER trg_impedir_pk_item
 BEFORE INSERT ON item
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela TIPO_ITEM
-CREATE TRIGGER trg_impedir_pk_tipo_item
+CREATE OR REPLACE TRIGGER trg_impedir_pk_tipo_item
 BEFORE INSERT ON tipo_item
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ORDEM_SERVICO
-CREATE TRIGGER trg_impedir_pk_ordem_servico
+CREATE OR REPLACE TRIGGER trg_impedir_pk_ordem_servico
 BEFORE INSERT ON ordem_servico
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
 
 
 -- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM_ORDEM
-CREATE TRIGGER trg_impedir_pk_item_ordem
+CREATE OR REPLACE TRIGGER trg_impedir_pk_item_ordem
 BEFORE INSERT ON item_ordem
 FOR EACH ROW
 EXECUTE FUNCTION impedir_pk_duplicada();
@@ -914,4 +936,5 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gerente;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gerente;
 GRANT SELECT ON log_registro TO gerente;
+
 
