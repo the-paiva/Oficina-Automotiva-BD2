@@ -90,7 +90,7 @@ CREATE TABLE ORDEM_SERVICO
 	COD_VEICULO INTEGER NOT NULL,
 	DATA_EMISSAO DATE NOT NULL,
 	VALOR FLOAT NOT NULL,
-	DESCONTO FLOAT NOT NULL,
+	DESCONTO FLOAT NOT NULL,	
 	FOREIGN KEY (COD_CLIENTE) REFERENCES CLIENTE(COD_CLIENTE),
 	FOREIGN KEY (COD_FUNCIONARIO) REFERENCES FUNCIONARIO(COD_FUNCIONARIO),
 	FOREIGN KEY (COD_VEICULO) REFERENCES VEICULO(COD_VEICULO)
@@ -110,7 +110,8 @@ CREATE TABLE ITEM_ORDEM
 
 
 -- Criação da tabela LOG_REGISTRO
-CREATE TABLE log_registro (
+CREATE TABLE log_registro
+(
     id SERIAL PRIMARY KEY,
     tabela_nome TEXT,
     operacao TEXT,
@@ -120,6 +121,16 @@ CREATE TABLE log_registro (
     data_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	usuario TEXT
 );
+
+
+-- Criação da tabela STATUS_PERMITIDO
+CREATE TABLE status_permitido
+(
+	cod_status INTEGER NOT NULL,
+    tabela TEXT NOT NULL,
+    valor TEXT NOT NULL
+);
+
 
 
 -----------------------------------------------------------------------------------------
@@ -600,6 +611,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- Impede que um item tenha uma quantidade negativa no estoque
+CREATE OR REPLACE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM()
+RETURNS TRIGGER AS
+$$
+BEGIN
+	IF NEW.QUANTIDADE < 0 THEN
+		RAISE EXCEPTION 'Um item não pode ter uma quantidade negativa';
+	END IF;
+
+	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
 -- Função genérica para a criação de usuários e sua inserção em um grupo
 CREATE OR REPLACE FUNCTION criar_usuario(
     p_usuario TEXT,
@@ -643,7 +669,8 @@ RETURNS TABLE (
     quantidade INTEGER,
     preco_unitario FLOAT,
     valor_total_item FLOAT
-) AS $$
+) AS 
+$$
 BEGIN
     RETURN QUERY
     SELECT 
@@ -658,11 +685,13 @@ BEGIN
     WHERE 
         io.cod_ordem_servico = p_cod_ordem;
 END;
-$$ LANGUAGE plpgsql;
+$$ 
+LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION impedir_item_duplicado()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS 
+$$
 BEGIN
     IF EXISTS (
         SELECT 1
@@ -676,13 +705,53 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ 
+LANGUAGE plpgsql;
+
+
+/* 
+Padroniza a coluna TABELA da tabela STATUS_PERMITIDO, fazendo todas as strings de suas
+linhas serem maiúsculas e eliminando espaços
+*/
+CREATE OR REPLACE FUNCTION PADRONIZAR_COLUNA_TABELA()
+RETURNS TRIGGER AS 
+$$
+BEGIN
+	NEW.TABELA = REPLACE(UPPER(NEW.TABELA), ' ', '');
+
+	IF NEW.TABELA NOT IN ('FUNCIONARIO', 'ORDEM_SERVICO', 'ITEM') THEN
+		RAISE EXCEPTION 'Tabela selecionada inválida! As tabelas aceitas são: FUNCIONARIO, ORDEM_SERVICO e ITEM.';
+	END IF;
+
+	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+/* 
+Padroniza a coluna STATUS da tabela ORDEM_SERVICO, fazendo todas as strings de suas
+linhas serem maiúsculas e eliminando espaços
+*/
+CREATE OR REPLACE FUNCTION PADRONIZAR_COLUNA_STATUS()
+RETURNS TRIGGER AS 
+$$
+BEGIN
+	NEW.STATUS = REPLACE(UPPER(NEW.STATUS), ' ', '');
+
+	IF NEW.STATUS NOT IN ('EM ANDAMENTO', 'CANCELADA', 'CONCLUÍDA') THEN
+		RAISE EXCEPTION 'Status informado inválido! Os tipos de status para uma ordem de serviço são: EM ANDAMENTO, CANCELADA e CONCLUÍDA.';
+	END IF;
+	
+	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
 
 
 -----------------------------------------------------------------------------------------
 --                                    TRIGGERS
 -----------------------------------------------------------------------------------------
-
 
 -- Trigger que executa a função NORMALIZAR_EMAIL() na tabela CLIENTE
 CREATE OR REPLACE TRIGGER TRG_NORMALIZAR_EMAIL_CLIENTE
@@ -802,74 +871,67 @@ FOR EACH ROW
 EXECUTE FUNCTION atualizar_valor_ordem();
 
 
-
 -- Trigger que executa a função REGISTRAR_LOG() na tabela CLIENTE
 CREATE OR REPLACE TRIGGER TRG_LOG_CLIENTE
 AFTER INSERT OR UPDATE OR DELETE ON CLIENTE
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela FUNCIONARIO
 CREATE OR REPLACE TRIGGER TRG_LOG_FUNCIONARIO
 AFTER INSERT OR UPDATE OR DELETE ON FUNCIONARIO
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela ITEM
 CREATE OR REPLACE TRIGGER TRG_LOG_ITEM
 AFTER INSERT OR UPDATE OR DELETE ON ITEM
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela ITEM_ORDEM
 CREATE OR REPLACE TRIGGER TRG_LOG_ITEM_ORDEM
 AFTER INSERT OR UPDATE OR DELETE ON ITEM_ORDEM
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela MODELO
 CREATE OR REPLACE TRIGGER TRG_LOG_MODELO
 AFTER INSERT OR UPDATE OR DELETE ON MODELO
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela MONTADORA
 CREATE OR REPLACE TRIGGER TRG_LOG_MONTADORA
 AFTER INSERT OR UPDATE OR DELETE ON MONTADORA
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela ORDEM_SERVICO
 CREATE OR REPLACE TRIGGER TRG_LOG_ORDEM_SERVICO
 AFTER INSERT OR UPDATE OR DELETE ON ORDEM_SERVICO
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela TIPO_ITEM
 CREATE OR REPLACE TRIGGER TRG_LOG_TIPO_ITEM
 AFTER INSERT OR UPDATE OR DELETE ON TIPO_ITEM
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função REGISTRAR_LOG() na tabela VEICULO
 CREATE OR REPLACE TRIGGER TRG_LOG_VEICULO
 AFTER INSERT OR UPDATE OR DELETE ON VEICULO
-FOR EACH ROW EXECUTE FUNCTION REGISTRAR_LOG();
-
-
--- Impede que um item tenha uma quantidade negativa no estoque
-CREATE OR REPLACE FUNCTION IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM()
-RETURNS TRIGGER AS
-$$
-BEGIN
-	IF NEW.QUANTIDADE < 0 THEN
-		RAISE EXCEPTION 'Um item não pode ter uma quantidade negativa';
-	END IF;
-
-	RETURN NEW;
-END;
-$$
-LANGUAGE PLPGSQL;
+FOR EACH ROW 
+EXECUTE FUNCTION REGISTRAR_LOG();
 
 
 -- Trigger que executa a função IMPEDIR_QUANTIDADE_NEGATIVA_DE_ITEM() na tabela ITEM
@@ -893,10 +955,23 @@ FOR EACH ROW
 EXECUTE FUNCTION impedir_item_duplicado();
 
 
+-- Trigger que executa a função PADRONIZAR_COLUNA_TABELA na tabela STATUS_PERMITIDO
+CREATE OR REPLACE TRIGGER TRG_PADRONIZAR_COLUNA_TABELA
+BEFORE INSERT OR UPDATE ON STATUS_PERMITIDO
+FOR EACH ROW
+EXECUTE FUNCTION PADRONIZAR_COLUNA_TABELA();
+
+
+-- Trigger que executa a função PADRONIZAR_COLUNA_STATUS na tabela ORDEM_SERVICO
+CREATE OR REPLACE TRIGGER TRG_PADRONIZAR_COLUNA_STATUS
+BEFORE INSERT OR UPDATE ON ORDEM_SERVICO
+FOR EACH ROW
+EXECUTE FUNCTION PADRONIZAR_COLUNA_STATUS();
+
+
 -----------------------------------------------------------------------------------------
 --                               CONTROLE DE ACESSO
 -----------------------------------------------------------------------------------------
-
 
 -- Criação dos grupos
 CREATE ROLE atendente;
@@ -1051,16 +1126,23 @@ LIMIT 50;
 
 -- Associa clientes aos seus respectivos veículos
 CREATE OR REPLACE VIEW vw_veiculos_clientes AS
-SELECT 
+SELECT DISTINCT
+	c.nome AS cliente,
     v.cod_veiculo,
     v.placa,
     v.cor,
     m.nome AS modelo,
-    mo.nome AS montadora,
-    c.nome AS cliente
+    mo.nome AS montadora
 FROM veiculo v
 JOIN modelo m ON m.cod_modelo = v.cod_modelo
 JOIN montadora mo ON mo.cod_montadora = m.cod_montadora
 JOIN ordem_servico os ON os.cod_veiculo = v.cod_veiculo
 JOIN cliente c ON c.cod_cliente = os.cod_cliente;
+
+
+-- Registro de todas as operações realizadas por um usuário no sistema
+CREATE OR REPLACE VIEW vw_auditoria_usuario AS
+SELECT usuario, tabela_nome, operacao, chave_primaria, data_log
+FROM log_registro
+ORDER BY data_log DESC;
 
