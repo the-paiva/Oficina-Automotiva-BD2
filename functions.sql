@@ -187,32 +187,72 @@ CREATE OR REPLACE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO()
 RETURNS TRIGGER AS
 $$
 DECLARE
-    TOTAL NUMERIC = 0;
-    ORDEM_ID INTEGER;
+    total NUMERIC := 0;
+    ordem_id INTEGER;
+    mes_nascimento INTEGER;
+    mes_emissao INTEGER;
+    ano_emissao INTEGER;
+    ja_tem_desconto BOOLEAN;
 BEGIN
     -- Identifica a ordem de serviço a ser atualizada
     IF TG_OP = 'DELETE' THEN
-        ORDEM_ID = OLD.COD_ORDEM_SERVICO;
+        ordem_id := OLD.cod_ordem_servico;
     ELSE
-        ORDEM_ID = NEW.COD_ORDEM_SERVICO;
+        ordem_id := NEW.cod_ordem_servico;
     END IF;
 
-    -- Recalcula o valor total somando: QUANTIDADE * PRECO
-    SELECT SUM(ITEM_ORDEM.QUANTIDADE * ITEM.PRECO)
-    INTO TOTAL
-    FROM ITEM_ORDEM
-    JOIN ITEM ON ITEM.COD_ITEM = ITEM_ORDEM.COD_ITEM
-    WHERE ITEM_ORDEM.COD_ORDEM_SERVICO = ORDEM_ID;
+    -- Calcula o valor total da O.S.
+    SELECT SUM(item_ordem.quantidade * item.preco)
+    INTO total
+    FROM item_ordem
+    JOIN item ON item.cod_item = item_ordem.cod_item
+    WHERE item_ordem.cod_ordem_servico = ordem_id;
 
-    -- Atualiza o valor na tabela ORDEM_SERVICO
-    UPDATE ORDEM_SERVICO
-    SET VALOR = COALESCE(TOTAL, 0)
-    WHERE COD_ORDEM_SERVICO = ORDEM_ID;
+    -- Atualiza o valor (sem aplicar desconto ainda)
+    UPDATE ordem_servico
+    SET valor = COALESCE(total, 0)
+    WHERE cod_ordem_servico = ordem_id;
+
+    -- Pega o mês de nascimento do cliente
+    SELECT EXTRACT(MONTH FROM cliente.dt_nasc)
+    INTO mes_nascimento
+    FROM ordem_servico
+    JOIN cliente ON cliente.cod_cliente = ordem_servico.cod_cliente
+    WHERE ordem_servico.cod_ordem_servico = ordem_id;
+
+    -- Pega o mês e ano da emissão da O.S.
+    SELECT EXTRACT(MONTH FROM data_emissao), EXTRACT(YEAR FROM data_emissao)
+    INTO mes_emissao, ano_emissao
+    FROM ordem_servico
+    WHERE cod_ordem_servico = ordem_id;
+
+    -- Verifica se é mês de aniversário e se ainda não tem desconto
+    IF mes_emissao = mes_nascimento THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM ordem_servico os
+            WHERE os.cod_cliente = (
+                SELECT cod_cliente FROM ordem_servico WHERE cod_ordem_servico = ordem_id
+            )
+            AND EXTRACT(MONTH FROM os.data_emissao) = mes_emissao
+            AND EXTRACT(YEAR FROM os.data_emissao) = ano_emissao
+            AND os.desconto_percentual > 0
+            AND os.cod_ordem_servico <> ordem_id
+        ) INTO ja_tem_desconto;
+
+        IF NOT ja_tem_desconto THEN
+            -- Aplica o desconto de 10% na ordem atual
+            UPDATE ordem_servico
+            SET desconto_percentual = 10
+            WHERE cod_ordem_servico = ordem_id;
+
+            RAISE NOTICE 'Desconto de aniversário aplicado!';
+        END IF;
+    END IF;
 
     RETURN NULL;
 END;
-$$
-LANGUAGE PLPGSQL;
+$$ LANGUAGE plpgsql;
 
 
 -- Impede que um cliente que tenha uma ordem de serviço registrada seja deletado

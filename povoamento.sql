@@ -1162,6 +1162,13 @@ SELECT DELETAR_DADOS
 
 SELECT DELETAR_DADOS
 (
+	'item_ordem',
+	'cod_item_ordem = 18'
+);
+
+
+SELECT DELETAR_DADOS
+(
 	'status',
 	'cod_status = 1'
 );
