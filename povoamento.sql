@@ -1,5 +1,5 @@
 /*
-Arquivo que contém uma série de comandos com finalidade de povoar a tabela e 
+Arquivo que contém uma série de comandos com a finalidade de povoar a tabela e 
 facilitar testes
 */
 
@@ -651,6 +651,22 @@ SELECT INSERIR_DADOS
 
 SELECT INSERIR_DADOS
 (
+    'ordem_servico',
+    'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto, cod_status',
+    '10, 5, 7, 5, ''2025-05-10'', 0.00, 0.00, 3'
+);
+
+
+SELECT INSERIR_DADOS
+(
+    'ordem_servico',
+    'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto_percentual, cod_status',
+    '11, 3, 7, 5, ''2025-02-03'', 0.00, 5.00, 1'
+);
+
+
+SELECT INSERIR_DADOS
+(
 	'item_ordem',
 	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
 	'1, 1, 1, 5'
@@ -799,67 +815,33 @@ SELECT INSERIR_DADOS(
 
 SELECT INSERIR_DADOS
 (
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'1, ''funcionario'', ''VINCULADO'' '
-);
-
-
--- Cenário de erro: O nome da tabela é inválido e o sistema retorna uma EXCEPTION
-SELECT INSERIR_DADOS
-(
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'2, ''func10n410'', ''DESVINCULADO'''
-);
-
-
--- Cenário de sucesso: O nome da tabela é válido e o INSERT é realizado corretamente
-SELECT INSERIR_DADOS
-(
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'2, ''funcio NArIo'', ''DESVINCULADO'''
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'18, 11, 3, 1'
 );
 
 
 SELECT INSERIR_DADOS
 (
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'3, ''ORDEM_SERVICO'', ''EM ANDAMENTO'''
+	'status',
+	'cod_status, descricao',
+	'1, ''EM ANDAMENTO'''
 );
 
 
 SELECT INSERIR_DADOS
 (
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'4, ''ORDEM_SERVICO'', ''CONCLUÍDA'''
+	'status',
+	'cod_status, descricao',
+	'2, ''CONCLUÍDA'''
 );
 
 
 SELECT INSERIR_DADOS
 (
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'5, ''ORDEM_SERVICO'', ''CANCELADA'''
-);
-
-
-SELECT INSERIR_DADOS
-(
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'6, ''ITEM'', ''ESTOQUE OK'''
-);
-
-
-SELECT INSERIR_DADOS
-(
-	'status_permitido',
-	'cod_status, tabela, valor',
-	'7, ''ITEM'', ''ESTOQUE BAIXO'''
+	'status',
+	'cod_status, descricao',
+	'3, ''CANCELADA'''
 );
 
 
@@ -1025,11 +1007,10 @@ SELECT ATUALIZAR_DADOS(
 );
 
 
-
 SELECT ATUALIZAR_DADOS
 (
     'ordem_servico',
-    'status = ''C0NCRUÍD4''',
+    'cod_status = 3',
     'cod_ordem_servico = 1'
 );
 
@@ -1153,6 +1134,13 @@ SELECT DELETAR_DADOS
 
 SELECT DELETAR_DADOS
 (
+	'ordem_servico',
+	'cod_ordem_servico = 11'
+);
+
+
+SELECT DELETAR_DADOS
+(
     'item_ordem',
     NULL
 );
@@ -1174,42 +1162,14 @@ SELECT DELETAR_DADOS
 
 SELECT DELETAR_DADOS
 (
-	'status_permitido',
+	'status',
 	'cod_status = 1'
 );
 
 
------------------------------------------------------------------------------------------
---									   CONSULTAS
------------------------------------------------------------------------------------------
-
-
-
-SELECT * FROM CLIENTE
-SELECT * FROM FUNCIONARIO
-SELECT * FROM MODELO
-SELECT * FROM MONTADORA
-SELECT * FROM ITEM
-SELECT * FROM TIPO_ITEM
-SELECT * FROM VEICULO
-SELECT * FROM ORDEM_SERVICO
-SELECT * FROM ITEM_ORDEM
-SELECT * FROM STATUS_PERMITIDO
-
-
-
-SELECT *
-FROM TABELA_OS_COM_VALOR_FINAL
-WHERE COD_ORDEM_SERVICO = 1;
-
-
-SELECT * FROM vw_faturamento_mensal
-SELECT * FROM vw_clientes_mais_ordens
-SELECT * FROM vw_itens_mais_usados
-SELECT * FROM vw_faturamento_funcionario
-SELECT * FROM vw_logs_recentes
-SELECT * FROM vw_veiculos_clientes ORDER BY cliente ASC;
-SELECT * FROM vw_auditoria_usuario
-SELECT * FROM ITENS_DA_ORDEM(1)
-SELECT * FROM ITEM
+SELECT DELETAR_DADOS
+(
+	'status',
+	NULL
+);
 
