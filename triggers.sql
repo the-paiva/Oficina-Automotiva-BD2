@@ -239,3 +239,66 @@ BEFORE INSERT OR UPDATE ON ORDEM_SERVICO
 FOR EACH ROW
 EXECUTE FUNCTION PROTEGER_DATA_EMISSAO();
 
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela CLIENTE
+CREATE TRIGGER trg_impedir_pk_cliente
+BEFORE INSERT ON cliente
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela FUNCIONARIO
+CREATE TRIGGER trg_impedir_pk_funcionario
+BEFORE INSERT ON funcionario
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela VEICULO
+CREATE TRIGGER trg_impedir_pk_veiculo
+BEFORE INSERT ON veiculo
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MODELO
+CREATE TRIGGER trg_impedir_pk_modelo
+BEFORE INSERT ON modelo
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela MONTADORA
+CREATE TRIGGER trg_impedir_pk_montadora
+BEFORE INSERT ON montadora
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM
+CREATE TRIGGER trg_impedir_pk_item
+BEFORE INSERT ON item
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela TIPO_ITEM
+CREATE TRIGGER trg_impedir_pk_tipo_item
+BEFORE INSERT ON tipo_item
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ORDEM_SERVICO
+CREATE TRIGGER trg_impedir_pk_ordem_servico
+BEFORE INSERT ON ordem_servico
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+
+
+-- Trigger que executa a função IMPEDIR_PK_DUPLICADA() na tabela ITEM_ORDEM
+CREATE TRIGGER trg_impedir_pk_item_ordem
+BEFORE INSERT ON item_ordem
+FOR EACH ROW
+EXECUTE FUNCTION impedir_pk_duplicada();
+

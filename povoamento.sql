@@ -118,10 +118,25 @@ SELECT INSERIR_DADOS(
     '15, ''456-789-012-33'', ''Felipe Andrade'', ''1990-12-30'', ''(86)99123-4567'', ''felipea@gmail.com'''
 );
 
+
 SELECT INSERIR_DADOS(
     'cliente',
     'cod_cliente, cpf, nome, dt_nasc, telefone, email',
     '16, ''567-890-123-44'', ''Mariana Costa'', ''1993-06-18'', ''(86)99444-5566'', ''maricosta@gmail.com'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'cliente',
+    'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+    '17, ''440-550-660-77'', ''Marina Aguiar'', ''1981-08-27'', ''(86)99666-4554'', ''maguiar@hotmail.com'''
+);
+
+
+SELECT INSERIR_DADOS(
+    'cliente',
+    'cod_cliente, cpf, nome, dt_nasc, telefone, email',
+    '17, ''567-890-123-44'', ''Mariana Costa'', ''1993-06-18'', ''(86)99444-5566'', ''maricosta@gmail.com'''
 );
 
 
@@ -680,8 +695,6 @@ SELECT INSERIR_DADOS
 );
 
 
-
-
 SELECT INSERIR_DADOS
 (
 	'item_ordem',
@@ -1094,6 +1107,14 @@ SELECT ATUALIZAR_DADOS
 	'ordem_servico',
 	'status = ''CANCELADA'' ',
 	'cod_ordem_servico = 2'
+);
+
+
+SELECT ATUALIZAR_DADOS
+(
+    'ordem_servico',
+    'cod_status = 2',
+    'cod_ordem_servico = 5'
 );
 
 
