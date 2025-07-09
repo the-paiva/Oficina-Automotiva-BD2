@@ -667,6 +667,23 @@ SELECT INSERIR_DADOS
 
 SELECT INSERIR_DADOS
 (
+    'ordem_servico',
+    'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, data_emissao, valor, desconto_percentual, cod_status',
+    '12, 6, 3, 3, ''2025-04-03'', 0.00, 0.00, 1'
+);
+
+SELECT INSERIR_DADOS
+(
+	'ordem_servico',
+	'cod_ordem_servico, cod_cliente, cod_funcionario, cod_veiculo, valor, desconto_percentual',
+	'13, 12, 2, 5, 0, 0'
+);
+
+
+
+
+SELECT INSERIR_DADOS
+(
 	'item_ordem',
 	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
 	'1, 1, 1, 5'
@@ -823,6 +840,46 @@ SELECT INSERIR_DADOS
 
 SELECT INSERIR_DADOS
 (
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'19, 11, 17, 1'
+);
+
+
+SELECT INSERIR_DADOS
+(
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'20, 11, 3, 1'
+);
+
+
+SELECT INSERIR_DADOS
+(
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'20, 11, 3, 1'
+);
+
+
+SELECT INSERIR_DADOS
+(
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'21, 10, 2, 10'
+);
+
+
+SELECT INSERIR_DADOS
+(
+	'item_ordem',
+	'cod_item_ordem, cod_ordem_servico, cod_item, quantidade',
+	'22, 10, 17, 1'
+);
+
+
+SELECT INSERIR_DADOS
+(
 	'status',
 	'cod_status, descricao',
 	'1, ''EM ANDAMENTO'''
@@ -848,6 +905,7 @@ SELECT INSERIR_DADOS
 -----------------------------------------------------------------------------------------
 --										UPDATES
 -----------------------------------------------------------------------------------------
+
 
 SELECT ATUALIZAR_DADOS
 (
@@ -1093,6 +1151,27 @@ SELECT ATUALIZAR_DADOS(
 );
 
 
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 0',
+    'cod_item_ordem = 1'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 12',
+    'cod_item_ordem = 21'
+);
+
+
+SELECT ATUALIZAR_DADOS(
+    'item_ordem',
+    'quantidade = 5',
+    'cod_item_ordem = 21'
+);
+
+
 -----------------------------------------------------------------------------------------
 --										DELETE
 -----------------------------------------------------------------------------------------
@@ -1138,6 +1217,11 @@ SELECT DELETAR_DADOS
 	'cod_ordem_servico = 11'
 );
 
+SELECT DELETAR_DADOS
+(
+	'ordem_servico',
+	'cod_ordem_servico = 13'
+)
 
 SELECT DELETAR_DADOS
 (
@@ -1169,6 +1253,13 @@ SELECT DELETAR_DADOS
 
 SELECT DELETAR_DADOS
 (
+	'item_ordem',
+	'cod_item_ordem = 2'
+)
+
+
+SELECT DELETAR_DADOS
+(
 	'status',
 	'cod_status = 1'
 );
@@ -1178,5 +1269,12 @@ SELECT DELETAR_DADOS
 (
 	'status',
 	NULL
+);
+
+
+SELECT DELETAR_DADOS
+(
+	'item_ordem',
+	'cod_item_ordem = 22'
 );
 

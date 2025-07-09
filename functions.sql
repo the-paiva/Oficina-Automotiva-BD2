@@ -2,6 +2,7 @@
 --                                    FUNÇÕES
 -----------------------------------------------------------------------------------------
 
+
 -- Função genérica para realizar operações de INSERT
 CREATE OR REPLACE FUNCTION INSERIR_DADOS
 (
@@ -139,6 +140,7 @@ BEGIN
     IF TG_OP = 'INSERT' THEN
         SELECT QUANTIDADE INTO ESTOQUE_ATUAL FROM ITEM WHERE COD_ITEM = NEW.COD_ITEM;
 
+		-- Caso de erro: Quantidade solicitada maior do que a disponível no estoque
         IF ESTOQUE_ATUAL < NEW.QUANTIDADE THEN
             RAISE EXCEPTION 'Estoque insuficiente para o item %, disponível: %, solicitado: %',
                 NEW.COD_ITEM, ESTOQUE_ATUAL, NEW.QUANTIDADE;
@@ -153,12 +155,15 @@ BEGIN
         DIFERENCA = NEW.QUANTIDADE - OLD.QUANTIDADE;
 
         IF DIFERENCA <> 0 THEN
-            SELECT QUANTIDADE INTO ESTOQUE_ATUAL FROM ITEM WHERE COD_ITEM = NEW.COD_ITEM;
+            SELECT QUANTIDADE
+			INTO ESTOQUE_ATUAL 
+			FROM ITEM 
+			WHERE COD_ITEM = NEW.COD_ITEM;
 
             -- Se estiver aumentando a quantidade usada, verificar se há estoque suficiente
             IF DIFERENCA > 0 AND ESTOQUE_ATUAL < DIFERENCA THEN
                 RAISE EXCEPTION 'Estoque insuficiente para atualizar o item %, disponível: %, necessário: %',
-                    NEW.COD_ITEM, ESTOQUE_ATUAL, DIFERENCA;
+                 NEW.COD_ITEM, ESTOQUE_ATUAL, DIFERENCA;
             END IF;
 
             UPDATE ITEM
@@ -180,7 +185,7 @@ LANGUAGE PLPGSQL;
 
 
 /*
-Calcular o valor da ordem de serviço de acordo com os itens vinculados a essa ordem
+Calcula o valor da ordem de serviço de acordo com os itens vinculados a essa ordem
 através da tabela ITEM_ORDEM
 */
 CREATE OR REPLACE FUNCTION CALCULAR_VALOR_DE_ORDEM_DE_SERVICO()
@@ -209,11 +214,32 @@ BEGIN
     WHERE item_ordem.cod_ordem_servico = ordem_id;
 
     -- Atualiza o valor (sem aplicar desconto ainda)
+	PERFORM set_config('app.allow_valor_update', 'true', true);
+	
     UPDATE ordem_servico
     SET valor = COALESCE(total, 0)
     WHERE cod_ordem_servico = ordem_id;
 
-    -- Pega o mês de nascimento do cliente
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Verifica se o cliente está apto para receber o desconto de aniversariante do mês
+CREATE OR REPLACE FUNCTION APLICAR_DESCONTO_ANIVERSARIO()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    ordem_id INTEGER;
+    mes_nascimento INTEGER;
+    mes_emissao INTEGER;
+    ano_emissao INTEGER;
+    ja_tem_desconto BOOLEAN;
+BEGIN
+
+	ordem_id := NEW.cod_ordem_servico;
+	-- Pega o mês de nascimento do cliente
     SELECT EXTRACT(MONTH FROM cliente.dt_nasc)
     INTO mes_nascimento
     FROM ordem_servico
@@ -243,16 +269,18 @@ BEGIN
         IF NOT ja_tem_desconto THEN
             -- Aplica o desconto de 10% na ordem atual
             UPDATE ordem_servico
-            SET desconto_percentual = 10
+            SET desconto_percentual = desconto_percentual + 10
             WHERE cod_ordem_servico = ordem_id;
 
             RAISE NOTICE 'Desconto de aniversário aplicado!';
         END IF;
     END IF;
 
-    RETURN NULL;
+	RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$
+LANGUAGE PLPGSQL;
+
 
 
 -- Impede que um cliente que tenha uma ordem de serviço registrada seja deletado
@@ -453,6 +481,21 @@ $$
 LANGUAGE PLPGSQL;
 
 
+-- Impede que um item de uma ordem de serviço tenha uma quantidade menor do que 1
+CREATE OR REPLACE FUNCTION VALIDAR_QUANTIDADE_DE_ITEM_ORDEM()
+RETURNS TRIGGER AS
+$$
+BEGIN
+	IF NEW.QUANTIDADE < 1 THEN
+		RAISE EXCEPTION 'Um item da ordem de serviço deve ter uma quantidade maior do que 0.';
+	END IF;
+
+	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
 -- Função genérica para a criação de usuários e sua inserção em um grupo
 CREATE OR REPLACE FUNCTION criar_usuario(
     p_usuario TEXT,
@@ -490,21 +533,25 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+DROP FUNCTION itens_da_ordem(p_cod_ordem INTEGER)
+
+
+-- Lista todos os itens inclusos em uma ordem de serviço
 CREATE OR REPLACE FUNCTION itens_da_ordem(p_cod_ordem INTEGER)
 RETURNS TABLE (
     nome_item VARCHAR,
-    quantidade INTEGER,
     preco_unitario FLOAT,
-    valor_total_item FLOAT
+	quantidade INTEGER,
+    valor_total_item NUMERIC
 ) AS 
 $$
 BEGIN
     RETURN QUERY
     SELECT 
         i.nome,
+		i.preco,
         io.quantidade,
-        i.preco,
-        io.quantidade * i.preco AS valor_total_item
+        ROUND(io.quantidade * i.preco::numeric, 2) AS valor_total_item
     FROM 
         item_ordem io
     JOIN 
@@ -516,20 +563,32 @@ $$
 LANGUAGE plpgsql;
 
 
+/* 
+Impede que um mesmo item seja seja inserido mais de uma vez em uma ordem de serviço,
+aumentando apenas a quantidade ao invés disso.
+*/
 CREATE OR REPLACE FUNCTION impedir_item_duplicado()
 RETURNS TRIGGER AS 
 $$
 BEGIN
+    -- Verifica se já existe o item na mesma ordem
     IF EXISTS (
         SELECT 1
         FROM item_ordem
         WHERE cod_ordem_servico = NEW.cod_ordem_servico
           AND cod_item = NEW.cod_item
     ) THEN
-        RAISE EXCEPTION 
-            'Item já inserido na ordem. Considere alterar a quantidade.';
+        -- Incrementa a quantidade existente
+        UPDATE item_ordem
+        SET quantidade = quantidade + NEW.quantidade
+        WHERE cod_ordem_servico = NEW.cod_ordem_servico
+          AND cod_item = NEW.cod_item;
+
+        -- Cancela o INSERT atual
+        RETURN NULL;
     END IF;
 
+    -- Caso não exista ainda, permite o insert normalmente
     RETURN NEW;
 END;
 $$ 
@@ -580,20 +639,25 @@ CREATE OR REPLACE FUNCTION VALIDAR_VALOR_DE_OS()
 RETURNS TRIGGER AS
 $$
 BEGIN
-	IF TG_OP = 'INSERT' THEN
-		NEW.VALOR = 0.00;
+    -- Protege o INSERT: força o valor como 0
+    IF TG_OP = 'INSERT' THEN
+        NEW.VALOR := 0.00;
+        RAISE NOTICE 'O valor da Ordem de Serviço sempre inicia como 0.';
+    END IF;
 
-		RAISE NOTICE 'Não é possível inicializar uma ordem de serviço com valor acima de 0.';
-	END IF;
+    -- Protege o UPDATE: só permite alterar VALOR se a variável estiver ativada
+    IF TG_OP = 'UPDATE' THEN
+        IF NEW.VALOR <> OLD.VALOR AND current_setting('app.allow_valor_update', true) IS DISTINCT FROM 'true' THEN
+            RAISE EXCEPTION 'O valor da Ordem de Serviço só pode ser alterado automaticamente.';
+        END IF;
+    END IF;
 
-	IF TG_OP = 'UPDATE' THEN
-
-	END IF;
-
-	RETURN NEW;
+    RETURN NEW;
 END;
 $$
-LANGUAGE PLPGSQL;
+LANGUAGE plpgsql;
+
+
 
 
 /*
@@ -609,6 +673,29 @@ BEGIN
 	END IF;
 
 	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+/*
+Impede que a data de emissão da ordem de serviço seja diferente da data atual 
+do sistema.
+*/
+CREATE OR REPLACE FUNCTION PROTEGER_DATA_EMISSAO()
+RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP = 'INSERT' AND NEW.DATA_EMISSAO IS DISTINCT FROM CURRENT_DATE THEN
+		NEW.DATA_EMISSAO = CURRENT_DATE;
+		RAISE NOTICE 'A data de emissão da ordem de serviço é emitida automaticamente pelo sistema.';
+	END IF;
+
+	IF TG_OP = 'UPDATE' AND NEW.data_emissao IS DISTINCT FROM OLD.data_emissao THEN
+   		RAISE EXCEPTION 'A data de emissão não pode ser alterada';
+  	END IF;
+	  
+  	RETURN NEW;
 END;
 $$
 LANGUAGE PLPGSQL;
